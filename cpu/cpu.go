@@ -224,7 +224,32 @@ func (c *CPU) Execute(opcode byte) {
 		c.dec(&c.H)
 	case 0x26: // LD H,d8
 		c.ldXNN(&c.H)
-	case 0x27: // TODO: DAA
+	case 0x27: // DAA
+		if c.F&SUB == 0 {
+			// Addition
+			if (c.A&0x0F) > 9 || (c.F&HALFCARRY) != 0 {
+				c.A += 0x06
+			}
+			if c.A > 0x99 || (c.F&CARRY) != 0 {
+				c.A += 0x60
+				c.F |= CARRY
+			}
+		} else {
+			if (c.F & HALFCARRY) != 0 {
+				c.A -= 0x06
+			}
+			if (c.F & CARRY) != 0 {
+				c.A -= 0x60
+			}
+		}
+		// Reset H to 0
+		c.F &= ^HALFCARRY
+
+		if c.A == 0 {
+			c.F |= ZERO
+		} else {
+			c.F &= ^ZERO
+		}
 	case 0x28: // JR Z,s8
 		if c.F&ZERO != 0 {
 			c.jr()
@@ -251,11 +276,228 @@ func (c *CPU) Execute(opcode byte) {
 		c.dec(&c.L)
 	case 0x2E: // LD L,d8
 		c.ldXNN(&c.L)
-	case 0x2F: // TODO: CPL
+	case 0x2F: // CPL: complement 1 of A
+		c.A = ^c.A
+		c.F |= HALFCARRY | SUB
 
 	// 0x3X
-	case 0x3E: // LD A,nn
+	case 0x30: // JR NC, s8
+		if (c.F & CARRY) != 0 {
+			c.jr()
+		}
+	case 0x31: // LD SP,d16
+		low := c.mem.Read(c.PC)
+		high := c.mem.Read(c.PC + 1)
+		c.SP = uint16(high)<<8 | uint16(low)
+		c.PC += 2
+	case 0x32: // LD (HL-),A
+		c.mem.Write(c.HL(), c.A)
+		c.WriteHL(c.HL() - 1)
+	case 0x33: // INC SP
+		c.SP++
+	case 0x34: // INC (HL)
+		val := c.mem.Read(c.HL())
+		old := val
+		val++
+		c.mem.Write(c.HL(), val)
+
+		c.F &= 0x1F
+		if val == 0 {
+			c.F |= ZERO
+		}
+		if old&0x0F == 0x0F {
+			c.F |= HALFCARRY
+		}
+	case 0x35: // DEC (HL)
+		val := c.mem.Read(c.HL())
+		old := val
+		val--
+		c.mem.Write(c.HL(), val)
+
+		if val == 0 {
+			c.F |= ZERO
+		}
+		c.F |= SUB
+		if old&0x0F == 0 {
+			c.F |= HALFCARRY
+		}
+	case 0x36: // LD (HL),d8
+		val := c.mem.Read(c.PC)
+		c.mem.Write(c.HL(), val)
+		c.PC++
+	case 0x37: // SCF
+		c.F = (c.F & ZERO) | CARRY
+	case 0x38: // JR C,s8
+		if c.F&CARRY != 0 {
+			c.jr()
+		}
+	case 0x39: // ADD HL,SP
+		old := c.HL()
+		sum := uint32(c.HL()) + uint32(c.SP)
+		c.WriteHL(uint16(sum & 0xFFFF))
+		c.F &= 0x80
+		if (old&0x00FF)+(uint16(c.SP)&0x00FF) > 0x00FF {
+			c.F |= HALFCARRY
+		}
+		if sum > 0xFFFF {
+			c.F |= CARRY
+		}
+	case 0x3A: // LD A,(HL-)
+		c.A = c.mem.Read(c.HL())
+		c.WriteHL(c.HL() - 1)
+	case 0x3B: // DEC SP
+		c.SP--
+	case 0x3C: // INC A
+		c.inc(&c.A)
+	case 0x3D: // DEC A
+		c.dec(&c.A)
+	case 0x3E: // LD A,d8
 		c.ldXNN(&c.A)
+	case 0x3F: // CCF (Complement Carry Flag)
+		c.F = (c.F ^ CARRY) & (ZERO | CARRY)
+
+	// 0x4X - Load instructions B
+	case 0x40: // LD B,B
+		// NOP effectively
+	case 0x41: // LD B,C
+		c.B = c.C
+	case 0x42: // LD B,D
+		c.B = c.D
+	case 0x43: // LD B,E
+		c.B = c.E
+	case 0x44: // LD B,H
+		c.B = c.H
+	case 0x45: // LD B,L
+		c.B = c.L
+	case 0x46: // LD B,(HL)
+		c.B = c.mem.Read(c.HL())
+	case 0x47: // LD B,A
+		c.B = c.A
+
+	// 0x5X - Load instructions C
+	case 0x48: // LD C,B
+		c.C = c.B
+	case 0x49: // LD C,C
+		// NOP effectively
+	case 0x4A: // LD C,D
+		c.C = c.D
+	case 0x4B: // LD C,E
+		c.C = c.E
+	case 0x4C: // LD C,H
+		c.C = c.H
+	case 0x4D: // LD C,L
+		c.C = c.L
+	case 0x4E: // LD C,(HL)
+		c.C = c.mem.Read(c.HL())
+	case 0x4F: // LD C,A
+		c.C = c.A
+
+	// 0x5X - Load instructions D
+	case 0x50: // LD D,B
+		c.D = c.B
+	case 0x51: // LD D,C
+		c.D = c.C
+	case 0x52: // LD D,D
+		// NOP effectively
+	case 0x53: // LD D,E
+		c.D = c.E
+	case 0x54: // LD D,H
+		c.D = c.H
+	case 0x55: // LD D,L
+		c.D = c.L
+	case 0x56: // LD D,(HL)
+		c.D = c.mem.Read(c.HL())
+	case 0x57: // LD D,A
+		c.D = c.A
+
+	// 0x5X - Load instructions E
+	case 0x58: // LD E,B
+		c.E = c.B
+	case 0x59: // LD E,C
+		c.E = c.C
+	case 0x5A: // LD E,D
+		c.E = c.D
+	case 0x5B: // LD E,E
+		// NOP effectively
+	case 0x5C: // LD E,H
+		c.E = c.H
+	case 0x5D: // LD E,L
+		c.E = c.L
+	case 0x5E: // LD E,(HL)
+		c.E = c.mem.Read(c.HL())
+	case 0x5F: // LD E,A
+		c.E = c.A
+
+	// 0x6X - Load instructions H
+	case 0x60: // LD H,B
+		c.H = c.B
+	case 0x61: // LD H,C
+		c.H = c.C
+	case 0x62: // LD H,D
+		c.H = c.D
+	case 0x63: // LD H,E
+		c.H = c.E
+	case 0x64: // LD H,H
+		// NOP effectively
+	case 0x65: // LD H,L
+		c.H = c.L
+	case 0x66: // LD H,(HL)
+		c.H = c.mem.Read(c.HL())
+	case 0x67: // LD H,A
+		c.H = c.A
+
+	// 0x6X - Load instructions L
+	case 0x68: // LD L,B
+		c.L = c.B
+	case 0x69: // LD L,C
+		c.L = c.C
+	case 0x6A: // LD L,D
+		c.L = c.D
+	case 0x6B: // LD L,E
+		c.L = c.E
+	case 0x6C: // LD L,H
+		c.L = c.H
+	case 0x6D: // LD L,L
+		// NOP effectively
+	case 0x6E: // LD L,(HL)
+		c.L = c.mem.Read(c.HL())
+	case 0x6F: // LD L,A
+		c.L = c.A
+
+	// 0x7X - Load instructions to/from memory and A
+	case 0x70: // LD (HL),B
+		c.mem.Write(c.HL(), c.B)
+	case 0x71: // LD (HL),C
+		c.mem.Write(c.HL(), c.C)
+	case 0x72: // LD (HL),D
+		c.mem.Write(c.HL(), c.D)
+	case 0x73: // LD (HL),E
+		c.mem.Write(c.HL(), c.E)
+	case 0x74: // LD (HL),H
+		c.mem.Write(c.HL(), c.H)
+	case 0x75: // LD (HL),L
+		c.mem.Write(c.HL(), c.L)
+	case 0x76: // HALT
+		c.stopped = true
+	case 0x77: // LD (HL),A
+		c.mem.Write(c.HL(), c.A)
+	case 0x78: // LD A,B
+		c.A = c.B
+	case 0x79: // LD A,C
+		c.A = c.C
+	case 0x7A: // LD A,D
+		c.A = c.D
+	case 0x7B: // LD A,E
+		c.A = c.E
+	case 0x7C: // LD A,H
+		c.A = c.H
+	case 0x7D: // LD A,L
+		c.A = c.L
+	case 0x7E: // LD A,(HL)
+		c.A = c.mem.Read(c.HL())
+	case 0x7F: // LD A,A
+		// NOP effectively
+
 	case 0x80: // ADD A, B
 		oldA := c.A
 		sum := uint16(c.A) + uint16(c.B)
