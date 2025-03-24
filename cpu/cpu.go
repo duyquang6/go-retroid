@@ -25,8 +25,20 @@ type CPU struct {
 }
 
 func New(mem *mmu.Memory) *CPU {
+	// follow Gameboy BIOS spec
 	return &CPU{
-		mem: mem,
+		A:       0x01,   // Accumulator
+		F:       0xB0,   // Flags
+		B:       0x00,   // General-purpose register B
+		C:       0x13,   // General-purpose register C
+		D:       0x00,   // General-purpose register D
+		E:       0xD8,   // General-purpose register E
+		H:       0x01,   // General-purpose register H
+		L:       0x4D,   // General-purpose register L
+		PC:      0x0100, // Program Counter starts at 0x0100
+		SP:      0xFFFE, // Stack Pointer starts at 0xFFFE
+		mem:     mem,    // Memory reference
+		stopped: false,  // CPU is not stopped initially
 	}
 }
 
@@ -65,7 +77,7 @@ func (c *CPU) Execute(opcode byte) {
 
 		c.F = 0
 		if msb == 0x10 {
-			c.F |= CARRY
+			c.F |= FLAG_CARRY
 			c.A |= 0x1
 		}
 	case 0x08: // LD (a16), SP
@@ -78,10 +90,10 @@ func (c *CPU) Execute(opcode byte) {
 		c.WriteHL(uint16(sum & 0xFFFF))
 		c.F &= 0x80
 		if (old&0x00FF)+(c.BC()&0x00FF) > 0x00FF {
-			c.F |= HALFCARRY
+			c.F |= FLAG_HALFCARRY
 		}
 		if sum > 0xFFFF {
-			c.F |= CARRY
+			c.F |= FLAG_CARRY
 		}
 	case 0x0A: // LD A, (BC)
 		c.A = c.mem.Read(c.BC())
@@ -99,7 +111,7 @@ func (c *CPU) Execute(opcode byte) {
 
 		c.F = 0
 		if lsb == 0x01 {
-			c.F |= CARRY
+			c.F |= FLAG_CARRY
 			c.A |= 0x1 << 7
 		}
 
@@ -125,13 +137,13 @@ func (c *CPU) Execute(opcode byte) {
 	case 0x17: // RLA
 		oldA := c.A
 		c.A <<= 1
-		if c.F&CARRY > 0 {
+		if c.F&FLAG_CARRY > 0 {
 			c.A |= 0x01
 		}
 
 		c.F = 0
 		if oldA&0x80 > 0 {
-			c.F = CARRY
+			c.F = FLAG_CARRY
 		}
 	case 0x18: // JR s8
 		c.jr()
@@ -141,10 +153,10 @@ func (c *CPU) Execute(opcode byte) {
 		c.WriteHL(uint16(sum & 0xFFFF))
 		c.F &= 0x80
 		if (old&0x00FF)+(c.DE()&0x00FF) > 0x00FF {
-			c.F |= HALFCARRY
+			c.F |= FLAG_HALFCARRY
 		}
 		if sum > 0xFFFF {
-			c.F |= CARRY
+			c.F |= FLAG_CARRY
 		}
 	case 0x1A: // LD A, (DE)
 		c.A = c.mem.Read(c.DE())
@@ -159,16 +171,16 @@ func (c *CPU) Execute(opcode byte) {
 	case 0x1F: // RRA
 		oldA := c.A
 		c.A >>= 1
-		if c.F&CARRY > 0 {
+		if c.F&FLAG_CARRY > 0 {
 			c.A |= 0x80
 		}
 		c.F = 0
 		if oldA&0x01 > 0 {
-			c.F = CARRY
+			c.F = FLAG_CARRY
 		}
 	// 0x2X
 	case 0x20: // JR NZ, s8
-		if c.F&ZERO == 0 {
+		if c.F&FLAG_ZERO == 0 {
 			c.jr()
 		}
 	case 0x21: // LD HL,d16
@@ -187,33 +199,33 @@ func (c *CPU) Execute(opcode byte) {
 	case 0x26: // LD H,d8
 		c.ldXNN(&c.H)
 	case 0x27: // DAA
-		if c.F&SUB == 0 {
+		if c.F&FLAG_SUBTRACT == 0 {
 			// Addition
-			if (c.A&0x0F) > 9 || (c.F&HALFCARRY) != 0 {
+			if (c.A&0x0F) > 9 || (c.F&FLAG_HALFCARRY) != 0 {
 				c.A += 0x06
 			}
-			if c.A > 0x99 || (c.F&CARRY) != 0 {
+			if c.A > 0x99 || (c.F&FLAG_CARRY) != 0 {
 				c.A += 0x60
-				c.F |= CARRY
+				c.F |= FLAG_CARRY
 			}
 		} else {
-			if (c.F & HALFCARRY) != 0 {
+			if (c.F & FLAG_HALFCARRY) != 0 {
 				c.A -= 0x06
 			}
-			if (c.F & CARRY) != 0 {
+			if (c.F & FLAG_CARRY) != 0 {
 				c.A -= 0x60
 			}
 		}
 		// Reset H to 0
-		c.F &= ^HALFCARRY
+		c.F &= ^FLAG_HALFCARRY
 
 		if c.A == 0 {
-			c.F |= ZERO
+			c.F |= FLAG_ZERO
 		} else {
-			c.F &= ^ZERO
+			c.F &= ^FLAG_ZERO
 		}
 	case 0x28: // JR Z,s8
-		if c.F&ZERO != 0 {
+		if c.F&FLAG_ZERO != 0 {
 			c.jr()
 		}
 	case 0x29: // ADD HL,HL
@@ -222,10 +234,10 @@ func (c *CPU) Execute(opcode byte) {
 		c.WriteHL(uint16(sum & 0xFFFF))
 		c.F &= 0x80
 		if (old&0x00FF)+(old&0x00FF) > 0x00FF {
-			c.F |= HALFCARRY
+			c.F |= FLAG_HALFCARRY
 		}
 		if sum > 0xFFFF {
-			c.F |= CARRY
+			c.F |= FLAG_CARRY
 		}
 	case 0x2A: // LD A,(HL+)
 		c.A = c.mem.Read(c.HL())
@@ -240,11 +252,11 @@ func (c *CPU) Execute(opcode byte) {
 		c.ldXNN(&c.L)
 	case 0x2F: // CPL: complement 1 of A
 		c.A = ^c.A
-		c.F |= HALFCARRY | SUB
+		c.F |= FLAG_HALFCARRY | FLAG_SUBTRACT
 
 	// 0x3X
 	case 0x30: // JR NC, s8
-		if (c.F & CARRY) != 0 {
+		if (c.F & FLAG_CARRY) != 0 {
 			c.jr()
 		}
 	case 0x31: // LD SP,d16
@@ -265,10 +277,10 @@ func (c *CPU) Execute(opcode byte) {
 
 		c.F &= 0x1F
 		if val == 0 {
-			c.F |= ZERO
+			c.F |= FLAG_ZERO
 		}
 		if old&0x0F == 0x0F {
-			c.F |= HALFCARRY
+			c.F |= FLAG_HALFCARRY
 		}
 	case 0x35: // DEC (HL)
 		val := c.mem.Read(c.HL())
@@ -277,20 +289,20 @@ func (c *CPU) Execute(opcode byte) {
 		c.mem.Write(c.HL(), val)
 
 		if val == 0 {
-			c.F |= ZERO
+			c.F |= FLAG_ZERO
 		}
-		c.F |= SUB
+		c.F |= FLAG_SUBTRACT
 		if old&0x0F == 0 {
-			c.F |= HALFCARRY
+			c.F |= FLAG_HALFCARRY
 		}
 	case 0x36: // LD (HL),d8
 		val := c.mem.Read(c.PC)
 		c.mem.Write(c.HL(), val)
 		c.PC++
 	case 0x37: // SCF
-		c.F = (c.F & ZERO) | CARRY
+		c.F = (c.F & FLAG_ZERO) | FLAG_CARRY
 	case 0x38: // JR C,s8
-		if c.F&CARRY != 0 {
+		if c.F&FLAG_CARRY != 0 {
 			c.jr()
 		}
 	case 0x39: // ADD HL,SP
@@ -299,10 +311,10 @@ func (c *CPU) Execute(opcode byte) {
 		c.WriteHL(uint16(sum & 0xFFFF))
 		c.F &= 0x80
 		if (old&0x00FF)+(uint16(c.SP)&0x00FF) > 0x00FF {
-			c.F |= HALFCARRY
+			c.F |= FLAG_HALFCARRY
 		}
 		if sum > 0xFFFF {
-			c.F |= CARRY
+			c.F |= FLAG_CARRY
 		}
 	case 0x3A: // LD A,(HL-)
 		c.A = c.mem.Read(c.HL())
@@ -316,7 +328,7 @@ func (c *CPU) Execute(opcode byte) {
 	case 0x3E: // LD A,d8
 		c.ldXNN(&c.A)
 	case 0x3F: // CCF (Complement Carry Flag)
-		c.F = (c.F ^ CARRY) & (ZERO | CARRY)
+		c.F = (c.F ^ FLAG_CARRY) & (FLAG_ZERO | FLAG_CARRY)
 
 	// 0x4X - Load instructions B
 	case 0x40: // LD B,B
@@ -597,13 +609,47 @@ func (c *CPU) Execute(opcode byte) {
 		c.cp(c.A, c.A)
 
 	// 0xCX, Jump, RET, etc,...
-	case 0xC3: // JP nn
-		low := c.mem.Read(c.PC)
-		high := c.mem.Read(c.PC + 1)
-
-		c.PC = (uint16(high) << 8) | uint16(low)
+	case 0xC0: // RET NZ
+		if c.F&FLAG_ZERO == 0 {
+			low := c.mem.Read(c.SP)
+			high := c.mem.Read(c.SP + 1)
+			c.PC = uint16(high)<<8 | uint16(low)
+			c.SP += 2
+		}
+	case 0xC1: // POP BC
+		low := c.mem.Read(c.SP)
+		high := c.mem.Read(c.SP + 1)
+		c.WriteBC(uint16(high)<<8 | uint16(low))
+		c.SP += 2
+	case 0xC2: // JP NZ, a16
+		if c.F&FLAG_ZERO == 0 {
+			c.jp()
+		} else {
+			c.PC++
+		}
+	case 0xC3: // JP a16
+		c.jp()
+	case 0xC4: // CALL NZ, a16
+		if c.F&FLAG_ZERO == 0 {
+			c.SP -= 2
+			c.mem.Write(c.SP, byte(c.PC&0x00FF))
+			c.mem.Write(c.SP+1, byte((c.PC&0xFF00)>>8))
+			low := c.mem.Read(c.PC)
+			high := c.mem.Read(c.PC + 1)
+			c.PC = uint16(high)<<8 | uint16(low)
+		} else {
+			c.PC += 2
+		}
+	case 0xC5: // PUSH BC
+		c.SP -= 2
+		c.mem.Write(c.SP, c.C)
+		c.mem.Write(c.SP+1, c.B)
+	case 0xC6: // ADD A, d8
+		c.add(&c.A, c.mem.Read(c.PC))
+		c.PC++
+	case 0xC7: // RST 0 TODO
 	default:
-		log.Fatalf("opcode unhandle %04X\n", opcode)
+		log.Fatalf("opcode unhandled %04X\n", opcode)
 	}
 	slog.Debug(fmt.Sprintf("opcode: 0x%04X, PC: 0x%04X  A: 0x%02X  B: 0x%02X  F: 0x%02X", opcode, c.PC, c.A, c.B, c.F))
 }

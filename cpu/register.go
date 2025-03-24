@@ -1,10 +1,10 @@
 package cpu
 
 const (
-	ZERO      byte = 0x80
-	SUB       byte = 0x40
-	HALFCARRY byte = 0x20
-	CARRY     byte = 0x10
+	FLAG_ZERO      byte = 0x80
+	FLAG_SUBTRACT  byte = 0x40
+	FLAG_HALFCARRY byte = 0x20
+	FLAG_CARRY     byte = 0x10
 )
 
 func (c *CPU) BC() uint16 {
