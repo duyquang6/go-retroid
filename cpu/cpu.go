@@ -498,24 +498,48 @@ func (c *CPU) Execute(opcode byte) {
 	case 0x7F: // LD A,A
 		// NOP effectively
 
-	case 0x80: // ADD A, B
-		oldA := c.A
-		sum := uint16(c.A) + uint16(c.B)
-		c.A = byte(sum & 0xFF)
+	// 0x8X - ADD instructions
+	case 0x80: // ADD A,B
+		c.addReg8(&c.A, c.B)
+	case 0x81: // ADD A,C
+		c.addReg8(&c.A, c.C)
+	case 0x82: // ADD A,D
+		c.addReg8(&c.A, c.D)
+	case 0x83: // ADD A,E
+		c.addReg8(&c.A, c.E)
+	case 0x84: // ADD A,H
+		c.addReg8(&c.A, c.H)
+	case 0x85: // ADD A,L
+		c.addReg8(&c.A, c.L)
+	case 0x86: // ADD A,(HL)
+		c.addReg8(&c.A, c.mem.Read(c.HL()))
+	case 0x87: // ADD A,A
+		c.addReg8(&c.A, c.A)
+	case 0x88: // ADC A,B
+		c.addCarryReg8(&c.A, c.B)
+	case 0x89: // ADC A,C
+		c.addCarryReg8(&c.A, c.C)
+	case 0x8A: // ADC A,D
+		c.addCarryReg8(&c.A, c.D)
+	case 0x8B: // ADC A,E
+		c.addCarryReg8(&c.A, c.E)
+	case 0x8C: // ADC A,H
+		c.addCarryReg8(&c.A, c.H)
+	case 0x8D: // ADC A,L
+		c.addCarryReg8(&c.A, c.L)
+	case 0x8E: // ADC A,(HL)
+		c.addCarryReg8(&c.A, c.mem.Read(c.HL()))
+	case 0x8F: // ADC A,A
+		c.addCarryReg8(&c.A, c.A)
 
-		c.F = 0
-		if (oldA&0x0F)+(c.B&0x0F) > 0x0F {
-			c.F |= HALFCARRY
-		}
-		if c.A == 0 {
-			c.F |= ZERO
-		}
-		if sum > 0xFF {
-			c.F |= CARRY
-		}
+	// 0x9X - SUB instructions
+
+	// 0xAX - AND, XOR instructions
 	case 0xAF: // XOR A, reset A
 		c.A ^= c.A
 		c.F = ZERO
+	// 0xBX - OR, CP instructions
+
 	case 0xC3: // JP nn
 		low := c.mem.Read(c.PC)
 		high := c.mem.Read(c.PC + 1)
@@ -525,6 +549,41 @@ func (c *CPU) Execute(opcode byte) {
 		log.Fatalf("opcode unhandle %04X\n", opcode)
 	}
 	slog.Debug(fmt.Sprintf("opcode: 0x%04X, PC: 0x%04X  A: 0x%02X  B: 0x%02X  F: 0x%02X", opcode, c.PC, c.A, c.B, c.F))
+}
+
+func (c *CPU) addCarryReg8(reg *byte, term byte) {
+	old := (*reg)
+	carry := (c.F & CARRY) >> 4
+	sum := uint16(*reg) + uint16(term) + uint16(carry)
+	*reg = byte(sum & 0xFF)
+
+	c.F = 0
+	if (old&0x0F)+(term&0x0F)+carry > 0x0F {
+		c.F |= HALFCARRY
+	}
+	if *reg == 0 {
+		c.F |= ZERO
+	}
+	if sum > 0xFF {
+		c.F |= CARRY
+	}
+}
+
+func (c *CPU) addReg8(reg *byte, term byte) {
+	old := (*reg)
+	sum := uint16(*reg) + uint16(term)
+	*reg = byte(sum & 0xFF)
+
+	c.F = 0
+	if (old&0x0F)+(term&0x0F) > 0x0F {
+		c.F |= HALFCARRY
+	}
+	if *reg == 0 {
+		c.F |= ZERO
+	}
+	if sum > 0xFF {
+		c.F |= CARRY
+	}
 }
 
 func (c *CPU) jr() {
