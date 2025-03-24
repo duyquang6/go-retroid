@@ -596,7 +596,7 @@ func (c *CPU) Execute(opcode byte) {
 	case 0xBF: // CP A
 		c.cp(c.A, c.A)
 
-	// 0xCX
+	// 0xCX, Jump, RET, etc,...
 	case 0xC3: // JP nn
 		low := c.mem.Read(c.PC)
 		high := c.mem.Read(c.PC + 1)

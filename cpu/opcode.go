@@ -114,18 +114,15 @@ func (c *CPU) cp(reg byte, value byte) {
 }
 
 func (c *CPU) jr() {
-	s8 := c.mem.Read(c.PC)
-	if s8&0x80 == 0 {
-		c.PC += uint16(s8 & 0x7F)
-	} else {
-		c.PC -= uint16(s8 & 0x7F)
-	}
+	offset := int8(c.mem.Read(c.PC))
+	c.PC++
+	c.PC = uint16(int32(c.PC) + int32(offset))
 }
 
 func (c *CPU) inc(reg *byte) {
 	oldReg := *reg
 	(*reg)++
-	c.F &= 0x1F
+	c.F &= CARRY
 	if *reg == 0 {
 		c.F |= ZERO
 	}
@@ -137,12 +134,13 @@ func (c *CPU) inc(reg *byte) {
 func (c *CPU) dec(reg *byte) {
 	old := *reg
 	(*reg)--
+
+	c.F &= CARRY
+	c.F |= SUB
 	if *reg == 0 {
 		c.F |= ZERO
 	}
-
-	c.F |= SUB
-	if old&0x0F == 0 {
+	if (old & 0x0F) == 0 {
 		c.F |= HALFCARRY
 	}
 }
