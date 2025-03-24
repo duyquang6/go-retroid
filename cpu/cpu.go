@@ -336,7 +336,7 @@ func (c *CPU) Execute(opcode byte) {
 	case 0x47: // LD B,A
 		c.B = c.A
 
-	// 0x5X - Load instructions C
+	// 0x4X - Load instructions C
 	case 0x48: // LD C,B
 		c.C = c.B
 	case 0x49: // LD C,C
@@ -462,46 +462,141 @@ func (c *CPU) Execute(opcode byte) {
 
 	// 0x8X - ADD instructions
 	case 0x80: // ADD A,B
-		c.addReg8(&c.A, c.B)
+		c.add(&c.A, c.B)
 	case 0x81: // ADD A,C
-		c.addReg8(&c.A, c.C)
+		c.add(&c.A, c.C)
 	case 0x82: // ADD A,D
-		c.addReg8(&c.A, c.D)
+		c.add(&c.A, c.D)
 	case 0x83: // ADD A,E
-		c.addReg8(&c.A, c.E)
+		c.add(&c.A, c.E)
 	case 0x84: // ADD A,H
-		c.addReg8(&c.A, c.H)
+		c.add(&c.A, c.H)
 	case 0x85: // ADD A,L
-		c.addReg8(&c.A, c.L)
+		c.add(&c.A, c.L)
 	case 0x86: // ADD A,(HL)
-		c.addReg8(&c.A, c.mem.Read(c.HL()))
+		c.add(&c.A, c.mem.Read(c.HL()))
 	case 0x87: // ADD A,A
-		c.addReg8(&c.A, c.A)
+		c.add(&c.A, c.A)
 	case 0x88: // ADC A,B
-		c.addCarryReg8(&c.A, c.B)
+		c.addCarry(&c.A, c.B)
 	case 0x89: // ADC A,C
-		c.addCarryReg8(&c.A, c.C)
+		c.addCarry(&c.A, c.C)
 	case 0x8A: // ADC A,D
-		c.addCarryReg8(&c.A, c.D)
+		c.addCarry(&c.A, c.D)
 	case 0x8B: // ADC A,E
-		c.addCarryReg8(&c.A, c.E)
+		c.addCarry(&c.A, c.E)
 	case 0x8C: // ADC A,H
-		c.addCarryReg8(&c.A, c.H)
+		c.addCarry(&c.A, c.H)
 	case 0x8D: // ADC A,L
-		c.addCarryReg8(&c.A, c.L)
+		c.addCarry(&c.A, c.L)
 	case 0x8E: // ADC A,(HL)
-		c.addCarryReg8(&c.A, c.mem.Read(c.HL()))
+		c.addCarry(&c.A, c.mem.Read(c.HL()))
 	case 0x8F: // ADC A,A
-		c.addCarryReg8(&c.A, c.A)
+		c.addCarry(&c.A, c.A)
 
 	// 0x9X - SUB instructions
+	case 0x90: // SUB B ~ SUB A, B
+		c.sub(&c.A, c.B)
+	case 0x91: // SUB C ~ SUB A, C
+		c.sub(&c.A, c.C)
+	case 0x92: // SUB D ~ SUB A, D
+		c.sub(&c.A, c.D)
+	case 0x93: // SUB E ~ SUB A, E
+		c.sub(&c.A, c.E)
+	case 0x94: // SUB H ~ SUB A, H
+		c.sub(&c.A, c.H)
+	case 0x95: // SUB L ~ SUB A, L
+		c.sub(&c.A, c.L)
+	case 0x96: // SUB (HL) ~ SUB A, (HL)
+		c.sub(&c.A, c.mem.Read(c.HL()))
+	case 0x97: // SUB A ~ SUB A, A
+		c.sub(&c.A, c.A)
+	case 0x98: // SBC A, B
+		c.subCarry(&c.A, c.B)
+	case 0x99: // SBC A,C
+		c.subCarry(&c.A, c.C)
+	case 0x9A: // SBC A,D
+		c.subCarry(&c.A, c.D)
+	case 0x9B: // SBC A,E
+		c.subCarry(&c.A, c.E)
+	case 0x9C: // SBC A,H
+		c.subCarry(&c.A, c.H)
+	case 0x9D: // SBC A,L
+		c.subCarry(&c.A, c.L)
+	case 0x9E: // SBC A,(HL)
+		c.subCarry(&c.A, c.mem.Read(c.HL()))
+	case 0x9F: // SBC A,A
+		c.subCarry(&c.A, c.A)
 
 	// 0xAX - AND, XOR instructions
-	case 0xAF: // XOR A, reset A
-		c.A ^= c.A
-		c.F = ZERO
-	// 0xBX - OR, CP instructions
+	case 0xA0: // AND B
+		c.and(&c.A, c.B)
+	case 0xA1: // AND C
+		c.and(&c.A, c.C)
+	case 0xA2: // AND D
+		c.and(&c.A, c.D)
+	case 0xA3: // AND E
+		c.and(&c.A, c.E)
+	case 0xA4: // AND H
+		c.and(&c.A, c.H)
+	case 0xA5: // AND L
+		c.and(&c.A, c.L)
+	case 0xA6: // AND (HL)
+		c.and(&c.A, c.mem.Read(c.HL()))
+	case 0xA7: // AND A
+		c.and(&c.A, c.A)
+	case 0xA8: // XOR B
+		c.xor(&c.A, c.B)
+	case 0xA9: // XOR C
+		c.xor(&c.A, c.C)
+	case 0xAA: // XOR D
+		c.xor(&c.A, c.D)
+	case 0xAB: // XOR E
+		c.xor(&c.A, c.E)
+	case 0xAC: // XOR H
+		c.xor(&c.A, c.H)
+	case 0xAD: // XOR L
+		c.xor(&c.A, c.L)
+	case 0xAE: // XOR (HL)
+		c.xor(&c.A, c.mem.Read(c.HL()))
+	case 0xAF: // XOR A
+		c.xor(&c.A, c.A)
 
+	// 0xBX - OR, CP instructions
+	case 0xB0: // OR B
+		c.or(&c.A, c.B)
+	case 0xB1: // OR C
+		c.or(&c.A, c.C)
+	case 0xB2: // OR D
+		c.or(&c.A, c.D)
+	case 0xB3: // OR E
+		c.or(&c.A, c.E)
+	case 0xB4: // OR H
+		c.or(&c.A, c.H)
+	case 0xB5: // OR L
+		c.or(&c.A, c.L)
+	case 0xB6: // OR (HL)
+		c.or(&c.A, c.mem.Read(c.HL()))
+	case 0xB7: // OR A
+		c.or(&c.A, c.A)
+	case 0xB8: // CP B
+		c.cp(c.A, c.B)
+	case 0xB9: // CP C
+		c.cp(c.A, c.C)
+	case 0xBA: // CP D
+		c.cp(c.A, c.D)
+	case 0xBB: // CP E
+		c.cp(c.A, c.E)
+	case 0xBC: // CP H
+		c.cp(c.A, c.H)
+	case 0xBD: // CP L
+		c.cp(c.A, c.L)
+	case 0xBE: // CP (HL)
+		c.cp(c.A, c.mem.Read(c.HL()))
+	case 0xBF: // CP A
+		c.cp(c.A, c.A)
+
+	// 0xCX
 	case 0xC3: // JP nn
 		low := c.mem.Read(c.PC)
 		high := c.mem.Read(c.PC + 1)
