@@ -8,13 +8,6 @@ import (
 	"github.com/duyquang6/gboy/mmu"
 )
 
-const (
-	ZERO      byte = 0x80
-	SUB       byte = 0x40
-	HALFCARRY byte = 0x20
-	CARRY     byte = 0x10
-)
-
 type CPU struct {
 	// Accumulator Register (Fast processing ALU)
 	A byte
@@ -44,37 +37,8 @@ func (c *CPU) Fetch() byte {
 	return opcode
 }
 
-func (c *CPU) BC() uint16 {
-	return uint16(c.B)<<8 | uint16(c.C)
-}
-
-func (c *CPU) WriteBC(data uint16) {
-	c.B = byte((data & 0xFF00) >> 8)
-	c.C = byte(data & 0x00FF)
-}
-
-func (c *CPU) HL() uint16 {
-	return uint16(c.H)<<8 | uint16(c.L)
-}
-
-func (c *CPU) WriteHL(data uint16) {
-	c.H = byte((data & 0xFF00) >> 8)
-	c.L = byte(data & 0x00FF)
-}
-
-func (c *CPU) DE() uint16 {
-	return uint16(c.D)<<8 | uint16(c.E)
-}
-
-func (c *CPU) WriteDE(data uint16) {
-	c.D = byte((data & 0xFF00) >> 8)
-	c.E = byte(data & 0x00FF)
-}
-
-func (c *CPU) ldXNN(reg *byte) {
-	nn := c.mem.Read(c.PC)
-	*reg = nn
-	c.PC++
+func (c *CPU) Step() {
+	c.Execute(c.Fetch())
 }
 
 func (c *CPU) Execute(opcode byte) {
@@ -198,12 +162,10 @@ func (c *CPU) Execute(opcode byte) {
 		if c.F&CARRY > 0 {
 			c.A |= 0x80
 		}
-
 		c.F = 0
 		if oldA&0x01 > 0 {
 			c.F = CARRY
 		}
-
 	// 0x2X
 	case 0x20: // JR NZ, s8
 		if c.F&ZERO == 0 {
@@ -549,77 +511,4 @@ func (c *CPU) Execute(opcode byte) {
 		log.Fatalf("opcode unhandle %04X\n", opcode)
 	}
 	slog.Debug(fmt.Sprintf("opcode: 0x%04X, PC: 0x%04X  A: 0x%02X  B: 0x%02X  F: 0x%02X", opcode, c.PC, c.A, c.B, c.F))
-}
-
-func (c *CPU) addCarryReg8(reg *byte, term byte) {
-	old := (*reg)
-	carry := (c.F & CARRY) >> 4
-	sum := uint16(*reg) + uint16(term) + uint16(carry)
-	*reg = byte(sum & 0xFF)
-
-	c.F = 0
-	if (old&0x0F)+(term&0x0F)+carry > 0x0F {
-		c.F |= HALFCARRY
-	}
-	if *reg == 0 {
-		c.F |= ZERO
-	}
-	if sum > 0xFF {
-		c.F |= CARRY
-	}
-}
-
-func (c *CPU) addReg8(reg *byte, term byte) {
-	old := (*reg)
-	sum := uint16(*reg) + uint16(term)
-	*reg = byte(sum & 0xFF)
-
-	c.F = 0
-	if (old&0x0F)+(term&0x0F) > 0x0F {
-		c.F |= HALFCARRY
-	}
-	if *reg == 0 {
-		c.F |= ZERO
-	}
-	if sum > 0xFF {
-		c.F |= CARRY
-	}
-}
-
-func (c *CPU) jr() {
-	s8 := c.mem.Read(c.PC)
-	if s8&0x80 == 0 {
-		c.PC += uint16(s8 & 0x7F)
-	} else {
-		c.PC -= uint16(s8 & 0x7F)
-	}
-}
-
-func (c *CPU) inc(reg *byte) {
-	oldReg := *reg
-	(*reg)++
-	c.F &= 0x1F
-	if *reg == 0 {
-		c.F |= ZERO
-	}
-	if oldReg&0x0F == 0x0F {
-		c.F |= HALFCARRY
-	}
-}
-
-func (c *CPU) dec(reg *byte) {
-	old := *reg
-	(*reg)--
-	if *reg == 0 {
-		c.F |= ZERO
-	}
-
-	c.F |= SUB
-	if old&0x0F == 0 {
-		c.F |= HALFCARRY
-	}
-}
-
-func (c *CPU) Step() {
-	c.Execute(c.Fetch())
 }
