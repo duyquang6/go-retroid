@@ -151,3 +151,25 @@ func (c *CPU) jp() {
 
 	c.PC = (uint16(high) << 8) | uint16(low)
 }
+
+func (c *CPU) ret() {
+	low := c.mem.Read(c.SP)
+	high := c.mem.Read(c.SP + 1)
+	c.PC = uint16(high)<<8 | uint16(low)
+	c.SP += 2
+}
+
+func (c *CPU) call() {
+	c.SP -= 2
+	c.mem.Write(c.SP, byte(c.PC&0x00FF))
+	c.mem.Write(c.SP+1, byte((c.PC&0xFF00)>>8))
+	low := c.mem.Read(c.PC)
+	high := c.mem.Read(c.PC + 1)
+	c.PC = uint16(high)<<8 | uint16(low)
+}
+
+func (c *CPU) rst() {
+	c.SP -= 2
+	c.mem.Write(c.SP, byte(c.PC&0x00FF))
+	c.mem.Write(c.SP+1, byte((c.PC&0xFF00)>>8))
+}

@@ -19,6 +19,9 @@ type CPU struct {
 
 	PC, SP uint16
 
+	// interupt master enable
+	IME bool
+
 	mem *mmu.Memory
 
 	stopped bool
@@ -611,10 +614,7 @@ func (c *CPU) Execute(opcode byte) {
 	// 0xCX, Jump, RET, etc,...
 	case 0xC0: // RET NZ
 		if c.F&FLAG_ZERO == 0 {
-			low := c.mem.Read(c.SP)
-			high := c.mem.Read(c.SP + 1)
-			c.PC = uint16(high)<<8 | uint16(low)
-			c.SP += 2
+			c.ret()
 		}
 	case 0xC1: // POP BC
 		low := c.mem.Read(c.SP)
@@ -631,12 +631,7 @@ func (c *CPU) Execute(opcode byte) {
 		c.jp()
 	case 0xC4: // CALL NZ, a16
 		if c.F&FLAG_ZERO == 0 {
-			c.SP -= 2
-			c.mem.Write(c.SP, byte(c.PC&0x00FF))
-			c.mem.Write(c.SP+1, byte((c.PC&0xFF00)>>8))
-			low := c.mem.Read(c.PC)
-			high := c.mem.Read(c.PC + 1)
-			c.PC = uint16(high)<<8 | uint16(low)
+			c.call()
 		} else {
 			c.PC += 2
 		}
@@ -647,7 +642,100 @@ func (c *CPU) Execute(opcode byte) {
 	case 0xC6: // ADD A, d8
 		c.add(&c.A, c.mem.Read(c.PC))
 		c.PC++
-	case 0xC7: // RST 0 TODO
+	case 0xC7: // RST 0
+		c.rst()
+		c.PC = 0x0000
+	case 0xC8: // RET Z
+		if c.F&FLAG_ZERO != 0 {
+			c.ret()
+		}
+	case 0xC9: // RET
+		c.ret()
+	case 0xCA: // JP Z, a16
+		if c.F&FLAG_ZERO != 0 {
+			c.jp()
+		} else {
+			c.PC += 2
+		}
+	case 0xCC: // CALL Z, a16
+		if c.F&FLAG_ZERO != 0 {
+			c.call()
+		} else {
+			c.PC += 2
+		}
+	case 0xCD: // CALL a16
+		c.call()
+	case 0xCE: // ADC A, d8
+		c.addCarry(&c.A, c.mem.Read(c.PC))
+		c.PC++
+	case 0xCF: // RST 1
+		c.rst()
+		c.PC = 0x0008
+
+	// 0xDX - CALL, PUSH, SUB, etc.
+	case 0xD0: // RET NC
+		if c.F&FLAG_CARRY == 0 {
+			c.ret()
+		}
+	case 0xD1: // POP DE
+		low := c.mem.Read(c.SP)
+		high := c.mem.Read(c.SP + 1)
+		c.WriteDE(uint16(high)<<8 | uint16(low))
+		c.SP += 2
+	case 0xD2: // JP NC, a16
+		if c.F&FLAG_CARRY == 0 {
+			c.jp()
+		} else {
+			c.PC += 2
+		}
+	case 0xD3: // Unused (illegal opcode)
+		log.Fatalf("Illegal opcode: 0xD3")
+	case 0xD4: // CALL NC, a16
+		if c.F&FLAG_CARRY == 0 {
+			c.call()
+		} else {
+			c.PC += 2
+		}
+	case 0xD5: // PUSH DE
+		c.SP -= 2
+		c.mem.Write(c.SP, c.E)
+		c.mem.Write(c.SP+1, c.D)
+	case 0xD6: // SUB d8
+		c.sub(&c.A, c.mem.Read(c.PC))
+		c.PC++
+	case 0xD7: // RST 2
+		c.rst()
+		c.PC = 0x0010
+	case 0xD8: // RET C
+		if c.F&FLAG_CARRY != 0 {
+			c.ret()
+		}
+	case 0xD9: // RETI
+		c.ret()
+		c.IME = true // Enable interrupts
+	case 0xDA: // JP C, a16
+		if c.F&FLAG_CARRY != 0 {
+			c.jp()
+		} else {
+			c.PC += 2
+		}
+	case 0xDB: // Unused (illegal opcode)
+		log.Fatalf("Illegal opcode: 0xDB")
+	case 0xDC: // CALL C, a16
+		if c.F&FLAG_CARRY != 0 {
+			c.call()
+		} else {
+			c.PC += 2
+		}
+	case 0xDD: // Unused (illegal opcode)
+		log.Fatalf("Illegal opcode: 0xDD")
+	case 0xDE: // SBC A, d8
+		c.subCarry(&c.A, c.mem.Read(c.PC))
+		c.PC++
+	case 0xDF: // RST 3
+		c.rst()
+		c.PC = 0x0018
+
 	default:
 		log.Fatalf("opcode unhandled %04X\n", opcode)
 	}
