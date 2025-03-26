@@ -736,6 +736,123 @@ func (c *CPU) Execute(opcode byte) {
 		c.rst()
 		c.PC = 0x0018
 
+	// 0xEX - LD, PUSH, etc.
+	case 0xE0: // LD (a8), A
+		addr := 0xFF00 + uint16(c.mem.Read(c.PC))
+		c.mem.Write(addr, c.A)
+		c.PC++
+	case 0xE1: // POP HL
+		low := c.mem.Read(c.SP)
+		high := c.mem.Read(c.SP + 1)
+		c.WriteHL(uint16(high)<<8 | uint16(low))
+		c.SP += 2
+	case 0xE2: // LD (C), A
+		addr := 0xFF00 + uint16(c.C)
+		c.mem.Write(addr, c.A)
+	case 0xE3: // Unused (illegal opcode)
+		log.Fatalf("Illegal opcode: 0xE3")
+	case 0xE4: // Unused (illegal opcode)
+		log.Fatalf("Illegal opcode: 0xE4")
+	case 0xE5: // PUSH HL
+		c.SP -= 2
+		c.mem.Write(c.SP, c.L)
+		c.mem.Write(c.SP+1, c.H)
+	case 0xE6: // AND d8
+		c.and(&c.A, c.mem.Read(c.PC))
+		c.PC++
+	case 0xE7: // RST 4
+		c.rst()
+		c.PC = 0x0020
+	case 0xE8: // ADD SP, r8
+		offset := int8(c.mem.Read(c.PC))
+		c.PC++
+		oldSP := c.SP
+		c.SP = uint16(int32(c.SP) + int32(offset))
+		c.F = 0
+		if (oldSP&0x0F)+(uint16(offset)&0x0F) > 0x0F {
+			c.F |= FLAG_HALFCARRY
+		}
+		if (oldSP&0xFF)+(uint16(offset)&0xFF) > 0xFF {
+			c.F |= FLAG_CARRY
+		}
+	case 0xE9: // JP (HL)
+		c.PC = c.HL()
+	case 0xEA: // LD (a16), A
+		addr := uint16(c.mem.Read(c.PC)) | uint16(c.mem.Read(c.PC+1))<<8
+		c.mem.Write(addr, c.A)
+		c.PC += 2
+	case 0xEB: // Unused (illegal opcode)
+		log.Fatalf("Illegal opcode: 0xEB")
+	case 0xEC: // Unused (illegal opcode)
+		log.Fatalf("Illegal opcode: 0xEC")
+	case 0xED: // Unused (illegal opcode)
+		log.Fatalf("Illegal opcode: 0xED")
+	case 0xEE: // XOR d8
+		c.xor(&c.A, c.mem.Read(c.PC))
+		c.PC++
+	case 0xEF: // RST 5
+		c.rst()
+		c.PC = 0x0028
+
+	// 0xFX - LD, CP, etc.
+	case 0xF0: // LDH A, (a8)
+		addr := 0xFF00 + uint16(c.mem.Read(c.PC))
+		c.A = c.mem.Read(addr)
+		c.PC++
+	case 0xF1: // POP AF
+		low := c.mem.Read(c.SP)
+		high := c.mem.Read(c.SP + 1)
+		c.A = high
+		c.F = low & 0xF0
+		c.SP += 2
+	case 0xF2: // LD A, (C)
+		addr := 0xFF00 + uint16(c.C)
+		c.A = c.mem.Read(addr)
+	case 0xF3: // DI
+		c.IME = false // Disable interrupts
+	case 0xF4: // Unused (illegal opcode)
+		log.Fatalf("Illegal opcode: 0xF4")
+	case 0xF5: // PUSH AF
+		c.SP -= 2
+		c.mem.Write(c.SP, c.F)
+		c.mem.Write(c.SP+1, c.A)
+	case 0xF6: // OR d8
+		c.or(&c.A, c.mem.Read(c.PC))
+		c.PC++
+	case 0xF7: // RST 6
+		c.rst()
+		c.PC = 0x0030
+	case 0xF8: // LD HL, SP+s8
+		offset := int8(c.mem.Read(c.PC))
+		c.PC++
+		result := uint16(int32(c.SP) + int32(offset))
+		c.WriteHL(result)
+		c.F = 0
+		if (c.SP&0x0F)+(uint16(offset)&0x0F) > 0x0F {
+			c.F |= FLAG_HALFCARRY
+		}
+		if (c.SP&0xFF)+(uint16(offset)&0xFF) > 0xFF {
+			c.F |= FLAG_CARRY
+		}
+	case 0xF9: // LD SP, HL
+		c.SP = c.HL()
+	case 0xFA: // LD A, (a16)
+		addr := uint16(c.mem.Read(c.PC)) | uint16(c.mem.Read(c.PC+1))<<8
+		c.A = c.mem.Read(addr)
+		c.PC += 2
+	case 0xFB: // EI
+		c.IME = true // Enable interrupts
+	case 0xFC: // Unused (illegal opcode)
+		log.Fatalf("Illegal opcode: 0xFC")
+	case 0xFD: // Unused (illegal opcode)
+		log.Fatalf("Illegal opcode: 0xFD")
+	case 0xFE: // CP d8
+		c.cp(c.A, c.mem.Read(c.PC))
+		c.PC++
+	case 0xFF: // RST 7
+		c.rst()
+		c.PC = 0x0038
+
 	default:
 		log.Fatalf("opcode unhandled %04X\n", opcode)
 	}
