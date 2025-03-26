@@ -75,13 +75,13 @@ func (c *CPU) Execute(opcode byte) {
 	case 0x06: // LD B,nn
 		c.ldXNN(&c.B)
 	case 0x07: // RLCA
-		msb := c.A & 0xF0
+		msb := c.A & 0x80
 		c.A <<= 1
 
 		c.F = 0
-		if msb == 0x10 {
+		if msb != 0 {
 			c.F |= FLAG_CARRY
-			c.A |= 0x1
+			c.A |= 0x01
 		}
 	case 0x08: // LD (a16), SP
 		c.mem.Write(c.PC, byte(c.SP&0x00FF))
@@ -853,8 +853,57 @@ func (c *CPU) Execute(opcode byte) {
 		c.rst()
 		c.PC = 0x0038
 
+	case 0xCB:
+		c.handleCBx()
 	default:
 		log.Fatalf("opcode unhandled %04X\n", opcode)
 	}
 	slog.Debug(fmt.Sprintf("opcode: 0x%04X, PC: 0x%04X  A: 0x%02X  B: 0x%02X  F: 0x%02X", opcode, c.PC, c.A, c.B, c.F))
+}
+
+func (c *CPU) handleCBx() {
+	opcode := c.mem.Read(c.PC)
+	c.PC++
+
+	switch opcode {
+	case 0x00: // RLC B
+		c.rlc(&c.B)
+	case 0x01: // RLC C
+		c.rlc(&c.C)
+	case 0x02: // RLC D
+		c.rlc(&c.D)
+	case 0x03: // RLC E
+		c.rlc(&c.E)
+	case 0x04: // RLC H
+		c.rlc(&c.H)
+	case 0x05: // RLC L
+		c.rlc(&c.L)
+	case 0x06: // RLC (HL)
+		val := c.mem.Read(c.HL())
+		c.rlc(&val)
+		c.mem.Write(c.HL(), val)
+	case 0x07: // RLC A
+		c.rlc(&c.A)
+	case 0x08: // RRC B
+		c.rrc(&c.B)
+	case 0x09: // RRC C
+		c.rrc(&c.C)
+	case 0x0A: // RRC D
+		c.rrc(&c.D)
+	case 0x0B: // RRC E
+		c.rrc(&c.E)
+	case 0x0C: // RRC H
+		c.rrc(&c.H)
+	case 0x0D: // RRC L
+		c.rrc(&c.L)
+	case 0x0E: // RRC (HL)
+		val := c.mem.Read(c.HL())
+		c.rrc(&val)
+		c.mem.Write(c.HL(), val)
+	case 0x0F: // RRC A
+		c.rrc(&c.A)
+
+	default:
+		log.Fatalf("Unhandled CB opcode: 0x%02X", opcode)
+	}
 }

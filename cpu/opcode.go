@@ -173,3 +173,29 @@ func (c *CPU) rst() {
 	c.mem.Write(c.SP, byte(c.PC&0x00FF))
 	c.mem.Write(c.SP+1, byte((c.PC&0xFF00)>>8))
 }
+
+func (c *CPU) rlc(reg *byte) {
+	msb := *reg & 0x80
+	*reg = (*reg << 1) | (msb >> 7)
+
+	c.F = 0
+	if *reg == 0 {
+		c.F |= FLAG_ZERO
+	}
+	if msb != 0 {
+		c.F |= FLAG_CARRY
+	}
+}
+
+func (c *CPU) rrc(reg *byte) {
+	lsb := *reg & 0x01
+	*reg = (*reg >> 1) | (lsb << 7)
+
+	c.F = 0
+	if *reg == 0 {
+		c.F |= FLAG_ZERO
+	}
+	if lsb != 0 {
+		c.F |= FLAG_CARRY
+	}
+}
