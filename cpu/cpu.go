@@ -902,6 +902,79 @@ func (c *CPU) handleCBx() {
 		c.mem.Write(c.HL(), val)
 	case 0x0F: // RRC A
 		c.rrc(&c.A)
+	case 0x10: // RL B
+		c.rl(&c.B)
+	case 0x11: // RL C
+		c.rl(&c.C)
+	case 0x12: // RL D
+		c.rl(&c.D)
+	case 0x13: // RL E
+		c.rl(&c.E)
+	case 0x14: // RL H
+		c.rl(&c.H)
+	case 0x15: // RL L
+		c.rl(&c.L)
+	case 0x16: // RL (HL)
+		val := c.mem.Read(c.HL())
+		c.rl(&val)
+		c.mem.Write(c.HL(), val)
+	case 0x17: // RL A
+		c.rl(&c.A)
+	case 0x18: // RR B
+		c.rr(&c.B)
+	case 0x19: // RR C
+		c.rr(&c.C)
+	case 0x1A: // RR D
+		c.rr(&c.D)
+	case 0x1B: // RR E
+		c.rr(&c.E)
+	case 0x1C: // RR H
+		c.rr(&c.H)
+	case 0x1D: // RR L
+		c.rr(&c.L)
+	case 0x1E: // RR (HL)
+		val := c.mem.Read(c.HL())
+		c.rr(&val)
+		c.mem.Write(c.HL(), val)
+	case 0x1F: // RR A
+		c.rr(&c.A)
+
+	case 0x20: // SLA B
+		c.sla(&c.B)
+	case 0x21: // SLA C
+		c.sla(&c.C)
+	case 0x22: // SLA D
+		c.sla(&c.D)
+	case 0x23: // SLA E
+		c.sla(&c.E)
+	case 0x24: // SLA H
+		c.sla(&c.H)
+	case 0x25: // SLA L
+		c.sla(&c.L)
+	case 0x26: // SLA (HL)
+		val := c.mem.Read(c.HL())
+		c.sla(&val)
+		c.mem.Write(c.HL(), val)
+	case 0x27: // SLA A
+		c.sla(&c.A)
+	case 0x28: // SRA B
+		c.sra(&c.B)
+	case 0x29: // SRA C
+		c.sra(&c.C)
+	case 0x2A: // SRA D
+		c.sra(&c.D)
+	case 0x2B: // SRA E
+		c.sra(&c.E)
+	case 0x2C: // SRA H
+		c.sra(&c.H)
+	case 0x2D: // SRA L
+		c.sra(&c.L)
+	case 0x2E: // SRA (HL)
+		val := c.mem.Read(c.HL())
+		c.sra(&val)
+		c.mem.Write(c.HL(), val)
+	case 0x2F: // SRA A
+		c.sra(&c.A)
 
 	default:
 		log.Fatalf("Unhandled CB opcode: 0x%02X", opcode)
