@@ -45,6 +45,10 @@ func New(mem *mmu.Memory) *CPU {
 	}
 }
 
+func (c *CPU) Memory() *mmu.Memory {
+	return c.mem
+}
+
 func (c *CPU) Fetch() byte {
 	opcode := c.mem.Read(c.PC)
 	c.PC++
