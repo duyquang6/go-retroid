@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/duyquang6/gboy/cpu"
-	"github.com/duyquang6/gboy/mmu"
+	"github.com/duyquang6/go-retroid/cpu"
+	"github.com/duyquang6/go-retroid/mmu"
 )
 
 type State struct {

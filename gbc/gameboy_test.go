@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/duyquang6/gboy/gbc"
+	"github.com/duyquang6/go-retroid/gbc"
 )
 
 func init() {

@@ -5,7 +5,7 @@ import (
 	"log"
 	"log/slog"
 
-	"github.com/duyquang6/gboy/mmu"
+	"github.com/duyquang6/go-retroid/mmu"
 )
 
 type CPU struct {
