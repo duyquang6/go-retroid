@@ -20,3 +20,7 @@ func (m *Memory) Write(address uint16, payload byte) {
 func (m *Memory) WriteBytes(address uint16, payload []byte) {
 	copy(m.data[address:address+uint16(len(payload))], payload)
 }
+
+func (m *Memory) RangeInclusive(start, end int) []byte {
+	return m.data[start : end+1]
+}
